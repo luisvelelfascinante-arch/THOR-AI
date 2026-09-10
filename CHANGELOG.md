@@ -47,6 +47,20 @@ en el backtesting sino en todo el pipeline de cálculo. Ver
   paralelizó — la conexión MT5 es una sesión única con estado, no segura
   para llamadas concurrentes. No es el cuello de botella real en vivo de
   todas formas (ver PERFORMANCE.md, sección "Lo que NO se paralelizó").
+- **NUEVO `tests/`**: 27 pruebas automatizadas con `unittest` (librería
+  estándar, no agrega dependencias) cubriendo la lógica de decisión
+  (confluencia, score ponderado — incluyendo el caso de redundancia de
+  momentum corregido en v2.1), el gestor de riesgo, estadísticas de
+  backtesting, significancia estadística, Monte Carlo, y la división en
+  folds del walk-forward. Corren con `python -m unittest discover tests`,
+  sin necesitar MT5 conectado. 27/27 pasan.
+- **Limpieza de código muerto real** (detectado con un verificador nuevo
+  de nombres no definidos por archivo, ver PERFORMANCE.md): eliminada
+  `indicators.indicator_bank.fila_a_dict()` (quedó huérfana tras
+  vectorizar el backtesting); conectadas `esta_conectado()` e
+  `info_cuenta()` de `connectors/mt5_connector.py` en `diagnostico.py`
+  (mostraban información real de la cuenta MT5, antes no se usaban en
+  ningún lado).
 
 ## v2.2 — Pendientes de v2.1 resueltos: Monte Carlo y walk-forward rolling
 

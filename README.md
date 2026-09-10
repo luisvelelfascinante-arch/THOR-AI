@@ -14,6 +14,8 @@ THOR-AI-v2/
 ├── test_telegram.py
 ├── CHANGELOG.md
 ├── INFORME_FASE1_AUDITORIA.md
+├── PERFORMANCE.md                 # optimizaciones de rendimiento y benchmarks (v3.0)
+├── FUENTES.md                     # fuentes de la investigación aplicada (v2.1+)
 ├── requirements.txt
 ├── .env.example
 ├── core/
@@ -25,36 +27,60 @@ THOR-AI-v2/
 ├── data/
 │   └── data_provider.py           # SOLO adquisición de velas
 ├── indicators/
-│   └── indicator_bank.py          # cálculo PURO (reutilizable en backtesting)
+│   ├── indicator_bank.py          # cálculo PURO, versión escalar (vivo) y vectorizada (backtesting)
+│   ├── signal_bank.py             # señales técnicas vectorizadas con NumPy (v3.0)
+│   ├── cache.py                   # caché en disco de indicadores, invalidación automática (v3.0)
+│   └── volatility_filter.py       # filtro ATR, inactivo por defecto (v2.1)
 ├── strategy/
 │   ├── confluence.py              # motor v1, activo por defecto
 │   ├── strategy_engine.py         # selecciona motor + cooldown
 │   └── scanner.py                 # escanea todos los pares
 ├── scoring/
-│   └── score_engine.py            # motor v2 (Fase 3) — NO activo por defecto
+│   └── score_engine.py            # motor v2 (Fase 3, corregido en v2.1) — NO activo por defecto
 ├── risk/
 │   └── risk_manager.py            # límites de señales, racha de pérdidas
 ├── backtesting/
 │   ├── loader.py                  # carga CSV histórico REAL
 │   ├── export_historico.py        # exporta histórico real desde tu MT5
-│   ├── backtest_engine.py         # simulación vela por vela
-│   └── run_backtest.py            # CLI
+│   ├── backtest_engine.py         # simulación en 2 etapas (indicadores cacheados + evaluación vectorizada)
+│   ├── monte_carlo.py             # reshuffle de operaciones para bandas de drawdown (v2.2)
+│   └── run_backtest.py            # CLI, con multiprocessing por par (v3.0)
 ├── optimization/
-│   └── optimizer.py               # grid-search sobre backtesting
+│   └── optimizer.py               # grid-search + walk-forward, indicadores reutilizados entre combinaciones
 ├── notifications/
 │   └── telegram_service.py        # mensaje enriquecido (Fase 6)
 ├── storage/
 │   ├── history.py                 # historial de señales en vivo
 │   └── stats.py
+├── tests/                         # pruebas automatizadas (v3.0) — no requieren MT5 conectado
+│   ├── test_strategy_logic.py
+│   ├── test_risk_manager.py
+│   ├── test_backtest_stats.py
+│   ├── test_monte_carlo.py
+│   └── test_optimizer_folds.py
 ├── legacy/
 │   ├── thor_score.py              # código muerto de v1, conservado
 │   └── price_action.py            # placeholder, pendiente material del curso
 ├── data_files/
 │   ├── historial.csv              # señales reales enviadas
 │   ├── historicos/                # CSV que tú exportes para backtesting
+│   ├── cache/                     # caché de indicadores (se genera sola, se puede borrar)
 │   └── backtests/                 # resultados de backtesting/optimización
 └── logs/thor.log
 ```
+
+## Pruebas automatizadas
+
+```bash
+python -m unittest discover tests
+```
+
+27 pruebas, cubren la lógica de decisión (confluencia y score ponderado,
+incluyendo el caso de redundancia de momentum corregido en v2.1), el
+gestor de riesgo, las estadísticas de backtesting (winrate, significancia
+estadística), Monte Carlo, y la división en folds del walk-forward. No
+requieren MT5 conectado ni datos históricos — corren en cualquier momento
+como chequeo rápido de que nada se rompió.
 
 ## Instalación
 
