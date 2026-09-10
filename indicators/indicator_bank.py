@@ -164,13 +164,3 @@ def calcular_confluencia_serie(df: pd.DataFrame) -> pd.DataFrame | None:
     out["atr_promedio"] = atr_serie.rolling(E.ATR_VENTANA_PROMEDIO).mean()
 
     return out
-
-
-def fila_a_dict(serie: pd.DataFrame, idx: int) -> dict | None:
-    """Extrae la fila `idx` de calcular_confluencia_serie() como el mismo
-    dict que devuelve calcular_confluencia() para una sola vela. Devuelve
-    None si esa fila todavía tiene NaN (no hay suficiente historial ahí)."""
-    fila = serie.iloc[idx]
-    if fila.isna().any():
-        return None
-    return {col: float(fila[col]) for col in serie.columns}

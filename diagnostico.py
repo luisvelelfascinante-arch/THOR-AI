@@ -9,9 +9,10 @@ Uso: python diagnostico.py
 import MetaTrader5 as mt5
 
 from core.config import estrategia as E, operativa as O
-from connectors.mt5_connector import conectar, desconectar, asegurar_simbolo
+from connectors.mt5_connector import conectar, desconectar, asegurar_simbolo, info_cuenta
 from data.data_provider import obtener_velas, velas_disponibles
 from indicators.indicator_bank import calcular_confluencia
+from indicators.volatility_filter import volatilidad_suficiente
 from strategy.strategy_engine import evaluar_datos
 
 NOMBRES_CONFIRMACION = {
@@ -35,6 +36,13 @@ def diagnosticar():
         return
 
     print("✅ Conexión MT5 OK.")
+    terminal, cuenta = info_cuenta()
+    if terminal:
+        print(f"   Terminal conectado: {getattr(terminal, 'connected', '?')} | "
+              f"Trade permitido: {getattr(terminal, 'trade_allowed', '?')}")
+    if cuenta:
+        print(f"   Cuenta: {cuenta.login} | Servidor: {cuenta.server} | "
+              f"Modo: {'DEMO' if cuenta.trade_mode == 0 else 'REAL/OTRO'}")
 
     for par in E.PARES:
         print("\n" + "-" * 72)
@@ -68,6 +76,10 @@ def diagnosticar():
         print(f"  MACD hist            : {datos['macd_hist']:.6f} (prev: {datos['macd_hist_prev']:.6f})")
         print(f"  Stochastic %K/%D     : {datos['stoch_k']:.2f} / {datos['stoch_d']:.2f}")
         print(f"  Parabolic SAR        : {datos['psar']:.5f}")
+        print(f"  ATR({E.ATR_PERIODO}) actual/promedio: {datos['atr_actual']:.6f} / "
+              f"{datos['atr_promedio']:.6f} "
+              f"(filtro ATR {'ACTIVO' if E.ATR_FILTRO_ACTIVO else 'inactivo'}: "
+              f"{'✅ pasa' if volatilidad_suficiente(datos) else '❌ mercado de baja volatilidad'})")
         print(f"  THOR SCORE           : {score}/100 (mínimo: {O.PROBABILIDAD_MINIMA})")
 
         if direccion:
