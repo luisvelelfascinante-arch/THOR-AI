@@ -1,3 +1,6 @@
+# Solo necesario si usas DATA_SOURCE=mt5 o backtesting/export_historico.py
+# (requiere Windows + terminal MT5 instalado). Con DATA_SOURCE=twelve_data
+# (default v4.0) no hace falta tenerlo instalado.
 MetaTrader5>=5.0.45
 pandas>=2.0.0
 numpy>=1.24.0

@@ -1,5 +1,47 @@
 # CHANGELOG — THOR IA
 
+## v4.0 — Twelve Data como fuente de datos (no requiere MT5 abierto)
+
+- **NUEVO `connectors/twelve_data_connector.py`**: fuente de datos en la
+  nube (twelvedata.com), alternativa a MT5. Incluye rate limiter real
+  (8 llamadas/minuto, 800/día — límites verificados del plan gratuito,
+  no inventados) y conversión automática de símbolo (`EURUSD` ->
+  `EUR/USD`).
+- **`connectors/mt5_connector.py`**: el paquete `MetaTrader5` ahora se
+  importa de forma perezosa (solo al primer uso real), no al cargar el
+  proyecto. Verificado: todo el proyecto arranca e importa correctamente
+  SIN tener `MetaTrader5` instalado, cuando `DATA_SOURCE=twelve_data`.
+- **`data/data_provider.py`**: reestructurado como despachador según
+  `core.config.operativa.DATA_SOURCE` (`twelve_data` | `mt5`) — el resto
+  del pipeline (indicadores, estrategia, scanner) no sabe ni le importa
+  de dónde vienen las velas.
+- **`core/config.py`**: nuevas variables de entorno, con alias hacia los
+  nombres anteriores (nada se rompe si ya tenías `.env` configurado):
+  - `DATA_SOURCE` (nuevo)
+  - `TWELVE_DATA_API_KEY` (nuevo)
+  - `SYMBOLS` (alias de `PARES`)
+  - `INTERVAL` (nuevo — timeframe en formato Twelve Data)
+  - `EXPIRY_MINUTES` (alias de `EXPIRACION_MINUTOS`)
+  - `MIN_SCORE` (alias de `PROBABILIDAD_MINIMA`)
+  - `SCAN_SECONDS` (alias de `INTERVALO_ESCANEO_SEGUNDOS`) — con
+    `DATA_SOURCE=twelve_data`, si no se especifica se calcula
+    automáticamente para no exceder el cupo diario de 800 llamadas según
+    la cantidad de `SYMBOLS` configurados.
+- **`main.py` y `diagnostico.py`** adaptados para funcionar con
+  cualquiera de las 2 fuentes sin duplicar código.
+- **NUEVO `test_twelve_data.py`**: prueba de conexión real (requiere tu
+  API key y red — no se puede correr desde este entorno de desarrollo,
+  sin acceso a internet).
+- **NUEVO `tests/test_twelve_data_connector.py`**: 12 pruebas con
+  `unittest.mock` (sin red real) — conversión de símbolo, parseo de
+  respuesta exitosa y de error, orden cronológico, rate limiter, cupo
+  diario. Detectó y corrigió un bug real en la prueba misma (reset diario
+  pisando el contador antes de la verificación) durante el desarrollo.
+- **`.gitignore`**: confirmado que `.env` sigue ignorado (ninguna
+  credencial se sube al repositorio).
+- **`requirements.txt`**: `MetaTrader5` documentado como opcional (solo
+  necesario con `DATA_SOURCE=mt5` o para exportar histórico).
+
 ## v3.0 — Optimización profesional de rendimiento (ver PERFORMANCE.md)
 
 Cambio de arquitectura enfocado en eliminar cuellos de botella, no solo

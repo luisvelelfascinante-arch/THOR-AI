@@ -87,13 +87,44 @@ como chequeo rápido de que nada se rompió.
 ```bash
 pip install -r requirements.txt
 cp .env.example .env
-# completa TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, y revisa PAYOUT_PCT
+# completa TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TWELVE_DATA_API_KEY
+```
+
+## Fuente de datos (v4.0)
+
+THOR AI soporta 2 fuentes para el modo EN VIVO (el backtesting siempre
+lee CSV, no depende de esto):
+
+- **`twelve_data`** (default): API en la nube (twelvedata.com), NO
+  requiere tener ningún terminal abierto. Necesitas una API key gratis —
+  ver más abajo. **Límite del plan gratuito: 8 llamadas/minuto, 800/día,
+  1 crédito por símbolo por llamada.** Con eso en mente,
+  `core/config.py` calcula automáticamente un intervalo de escaneo que no
+  agota el cupo diario según cuántos `SYMBOLS` configures (no lo bajes a
+  mano sin hacer la cuenta).
+- **`mt5`**: requiere Windows con terminal MetaTrader 5 abierto y sesión
+  iniciada. Es el modo original (v1-v3).
+
+Se elige con `DATA_SOURCE=twelve_data` o `DATA_SOURCE=mt5` en tu `.env`.
+
+### Conseguir tu API key de Twelve Data
+
+1. Ve a https://twelvedata.com/pricing y elige el plan **Basic** (gratis,
+   no pide tarjeta).
+2. Crea la cuenta (email o Google).
+3. La API key aparece directo en tu dashboard al terminar el registro.
+4. Pégala en `TWELVE_DATA_API_KEY=` en tu `.env`.
+
+### Probar la conexión
+
+```bash
+python test_twelve_data.py   # pide unas pocas velas de un par, sin generar señales
 ```
 
 ## Ejecutar en vivo
 
 ```bash
-python main.py            # loop en vivo (requiere MT5 abierto)
+python main.py            # loop en vivo (Twelve Data por defecto, no requiere MT5 abierto; con DATA_SOURCE=mt5 sí)
 python main.py --stats    # estadísticas del historial en vivo
 python diagnostico.py     # diagnóstico de un solo ciclo, motivo exacto de rechazo
 python test_telegram.py   # prueba Telegram sin tocar MT5

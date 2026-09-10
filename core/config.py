@@ -3,6 +3,7 @@ Configuración central de THOR AI, separada por dominio.
 Los secretos se leen SIEMPRE de variables de entorno, nunca hardcodeados.
 """
 
+import math
 import os
 from dotenv import load_dotenv
 
@@ -14,16 +15,28 @@ class EstrategiaConfig:
     NO modificar valores de indicadores sin justificación técnica o de
     backtesting — ver CHANGELOG.md."""
 
-    PARES = os.getenv("PARES", "").split(",") if os.getenv("PARES") else [
+    # SYMBOLS es el nombre nuevo (v4.0, alineado a la fuente de datos
+    # Twelve Data); PARES sigue funcionando por compatibilidad con v2/v3.
+    # Prioridad: SYMBOLS > PARES > lista por defecto.
+    _pares_env = os.getenv("SYMBOLS") or os.getenv("PARES") or ""
+    PARES = [p.strip().upper() for p in _pares_env.split(",") if p.strip()] or [
         "EURUSD",
         "GBPUSD",
         "USDJPY",
         "EURJPY",
         "GBPJPY",
     ]
+    SYMBOLS = PARES  # alias, mismo objeto — así cualquiera de los dos nombres sirve
 
-    TEMPORALIDAD_PRINCIPAL = "M1"
-    EXPIRACION_MINUTOS = 3
+    TEMPORALIDAD_PRINCIPAL = "M1"  # usado solo por el conector MT5 (timeframe MT5)
+
+    # INTERVAL es el nombre nuevo (v4.0) para el timeframe de velas, en el
+    # formato que espera Twelve Data ("1min", "5min", "15min", etc.).
+    INTERVAL = os.getenv("INTERVAL", "1min")
+
+    # EXPIRY_MINUTES (nuevo) / EXPIRACION_MINUTOS (nombre original) — mismo valor.
+    EXPIRACION_MINUTOS = int(os.getenv("EXPIRY_MINUTES") or os.getenv("EXPIRACION_MINUTOS") or 3)
+    EXPIRY_MINUTES = EXPIRACION_MINUTOS  # alias
 
     # Modo de decisión: "confluencia_total" (6/6 obligatorio, comportamiento
     # v1, es el que sigue corriendo en vivo) o "score_ponderado" (Fase 3,
@@ -62,8 +75,34 @@ class EstrategiaConfig:
 class OperativaConfig:
     """Todo lo que define CÓMO opera el proceso (no la estrategia)."""
 
-    PROBABILIDAD_MINIMA = int(os.getenv("PROBABILIDAD_MINIMA", 90))
-    INTERVALO_ESCANEO_SEGUNDOS = int(os.getenv("INTERVALO_ESCANEO_SEGUNDOS", 15))
+    # MIN_SCORE (nuevo) / PROBABILIDAD_MINIMA (nombre original) — mismo valor.
+    PROBABILIDAD_MINIMA = int(os.getenv("MIN_SCORE") or os.getenv("PROBABILIDAD_MINIMA") or 90)
+    MIN_SCORE = PROBABILIDAD_MINIMA  # alias
+
+    # Fuente de datos para el modo EN VIVO (el backtesting siempre lee CSV,
+    # esto no lo afecta). "twelve_data" (nuevo, v4.0, API en la nube — no
+    # requiere MT5 abierto) o "mt5" (requiere terminal MT5 abierto en Windows).
+    DATA_SOURCE = os.getenv("DATA_SOURCE", "twelve_data").lower()
+
+    # SCAN_SECONDS (nuevo) / INTERVALO_ESCANEO_SEGUNDOS (nombre original).
+    # Con Twelve Data en el plan gratuito el límite es 8 llamadas/minuto y
+    # 800/día (1 crédito por símbolo por llamada) — ver
+    # connectors/twelve_data_connector.py. Si no se especifica explícito,
+    # se calcula un intervalo que NO agote el cupo diario con la cantidad
+    # de símbolos configurada, en vez de heredar el 15s pensado para MT5
+    # (que no tiene ese límite).
+    _scan_env = os.getenv("SCAN_SECONDS") or os.getenv("INTERVALO_ESCANEO_SEGUNDOS")
+    if _scan_env:
+        INTERVALO_ESCANEO_SEGUNDOS = int(_scan_env)
+    elif DATA_SOURCE == "twelve_data":
+        _n_simbolos = max(len(EstrategiaConfig.PARES), 1)
+        # margen de seguridad: apunta a 750/día, no a los 800 exactos
+        _segundos_seguros = math.ceil(_n_simbolos * 86400 / 750)
+        INTERVALO_ESCANEO_SEGUNDOS = max(60, math.ceil(_segundos_seguros / 60) * 60)
+    else:
+        INTERVALO_ESCANEO_SEGUNDOS = 15
+    SCAN_SECONDS = INTERVALO_ESCANEO_SEGUNDOS  # alias
+
     COOLDOWN_MINUTOS = int(
         os.getenv("COOLDOWN_MINUTOS", EstrategiaConfig.EXPIRACION_MINUTOS)
     )
@@ -89,6 +128,11 @@ class ConexionConfig:
     MT5_LOGIN = os.getenv("MT5_LOGIN")
     MT5_PASSWORD = os.getenv("MT5_PASSWORD")
     MT5_SERVER = os.getenv("MT5_SERVER")
+
+    # NUEVO v4.0 — Twelve Data (twelvedata.com). Plan gratuito: 8
+    # llamadas/minuto, 800/día, 1 crédito por símbolo por llamada. Ver
+    # connectors/twelve_data_connector.py para el detalle del rate limiter.
+    TWELVE_DATA_API_KEY = os.getenv("TWELVE_DATA_API_KEY", "")
 
 
 class TelegramConfig:

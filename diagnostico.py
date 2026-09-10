@@ -1,15 +1,12 @@
 """
-Modo diagnóstico — adaptado a la arquitectura v2. Mismo comportamiento
-que el diagnostico.py que ya usaste (ciclo único, motivo exacto de
-rechazo), ahora usando los módulos separados de v2.
+Modo diagnóstico — funciona con cualquiera de las 2 fuentes de datos
+(core.config.operativa.DATA_SOURCE = "twelve_data" | "mt5"). Ciclo único,
+muestra el motivo exacto de rechazo por par.
 
 Uso: python diagnostico.py
 """
 
-import MetaTrader5 as mt5
-
-from core.config import estrategia as E, operativa as O
-from connectors.mt5_connector import conectar, desconectar, asegurar_simbolo, info_cuenta
+from core.config import estrategia as E, operativa as O, conexion as C
 from data.data_provider import obtener_velas, velas_disponibles
 from indicators.indicator_bank import calcular_confluencia
 from indicators.volatility_filter import volatilidad_suficiente
@@ -25,31 +22,72 @@ NOMBRES_CONFIRMACION = {
 }
 
 
+def _preparar_conexion() -> bool:
+    """Devuelve True si se puede continuar. Imprime el diagnóstico de la
+    fuente configurada y hace lo que haga falta para dejarla lista."""
+    print(f"Fuente de datos configurada: {O.DATA_SOURCE}")
+
+    if O.DATA_SOURCE == "twelve_data":
+        if not C.TWELVE_DATA_API_KEY:
+            print("\n❌ TWELVE_DATA_API_KEY no está configurada en tu .env.")
+            print("   Consigue una gratis en https://twelvedata.com/pricing "
+                  "(plan Basic/Free) y pégala en TWELVE_DATA_API_KEY=.")
+            return False
+
+        from connectors.twelve_data_connector import estado_cupo
+        cupo = estado_cupo()
+        print(f"✅ TWELVE_DATA_API_KEY configurada.")
+        print(f"   Cupo de hoy: {cupo['llamadas_hoy']}/{cupo['margen_seguridad']} "
+              f"usadas (límite real del plan gratuito: {cupo['limite_real_dia']}/día, "
+              f"8/minuto).")
+        return True
+
+    else:  # mt5
+        from connectors.mt5_connector import conectar, info_cuenta
+        if not conectar():
+            import connectors.mt5_connector as mtc
+            print("\n❌ FALLA CRÍTICA: no se pudo conectar a MetaTrader 5.")
+            try:
+                mt5 = mtc._cargar_mt5()
+                print(f"   Detalle MT5: {mt5.last_error()}")
+            except Exception:
+                pass
+            return False
+
+        print("✅ Conexión MT5 OK.")
+        terminal, cuenta = info_cuenta()
+        if terminal:
+            print(f"   Terminal conectado: {getattr(terminal, 'connected', '?')} | "
+                  f"Trade permitido: {getattr(terminal, 'trade_allowed', '?')}")
+        if cuenta:
+            print(f"   Cuenta: {cuenta.login} | Servidor: {cuenta.server} | "
+                  f"Modo: {'DEMO' if cuenta.trade_mode == 0 else 'REAL/OTRO'}")
+        return True
+
+
+def _asegurar_simbolo_si_aplica(par: str) -> bool:
+    """Solo MT5 necesita 'activar' el símbolo en Market Watch antes de
+    pedir velas; Twelve Data no tiene ese concepto."""
+    if O.DATA_SOURCE == "mt5":
+        from connectors.mt5_connector import asegurar_simbolo
+        return asegurar_simbolo(par)
+    return True
+
+
 def diagnosticar():
     print("=" * 72)
-    print(f"THOR IA v2 — MODO DIAGNÓSTICO (motor activo: {E.STRATEGY_MODE})")
+    print(f"THOR IA v4 — MODO DIAGNÓSTICO (motor activo: {E.STRATEGY_MODE})")
     print("=" * 72)
 
-    if not conectar():
-        print("\n❌ FALLA CRÍTICA: no se pudo conectar a MetaTrader 5.")
-        print(f"   Detalle MT5: {mt5.last_error()}")
+    if not _preparar_conexion():
         return
-
-    print("✅ Conexión MT5 OK.")
-    terminal, cuenta = info_cuenta()
-    if terminal:
-        print(f"   Terminal conectado: {getattr(terminal, 'connected', '?')} | "
-              f"Trade permitido: {getattr(terminal, 'trade_allowed', '?')}")
-    if cuenta:
-        print(f"   Cuenta: {cuenta.login} | Servidor: {cuenta.server} | "
-              f"Modo: {'DEMO' if cuenta.trade_mode == 0 else 'REAL/OTRO'}")
 
     for par in E.PARES:
         print("\n" + "-" * 72)
         print(f"PAR: {par}")
         print("-" * 72)
 
-        if not asegurar_simbolo(par):
+        if not _asegurar_simbolo_si_aplica(par):
             continue
 
         v_conf = velas_disponibles(par, "M1", int(E.VELAS_MINIMAS))
@@ -58,7 +96,7 @@ def diagnosticar():
 
         df = obtener_velas(par, "M1", int(E.VELAS_MINIMAS))
         if df is None:
-            print(f"  ❌ MT5 no entregó velas suficientes para {par}.")
+            print(f"  ❌ {O.DATA_SOURCE} no entregó velas suficientes para {par}.")
             continue
 
         datos = calcular_confluencia(df)
@@ -94,7 +132,10 @@ def diagnosticar():
                 marca = "✅" if valor != 0 else "❌"
                 print(f"      {marca} {NOMBRES_CONFIRMACION[clave]:42s}: {estado}")
 
-    desconectar()
+    if O.DATA_SOURCE == "mt5":
+        from connectors.mt5_connector import desconectar
+        desconectar()
+
     print("\n" + "=" * 72)
     print("Diagnóstico terminado.")
     print("=" * 72)
