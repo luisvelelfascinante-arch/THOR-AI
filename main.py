@@ -1,9 +1,9 @@
 import sys
 from datetime import datetime
 
-if sys.platform == "win32":
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+from core.consola import forzar_utf8
+
+forzar_utf8()
 
 from core.config import estrategia as E, operativa as O, conexion as C
 from core.logging_setup import configurar_logging

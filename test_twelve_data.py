@@ -10,6 +10,10 @@ Uso:
 
 import sys
 
+from core.consola import forzar_utf8
+
+forzar_utf8()
+
 from core.config import estrategia as E, conexion as C
 from connectors.twelve_data_connector import obtener_velas_twelve_data, estado_cupo
 

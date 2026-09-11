@@ -6,6 +6,10 @@ muestra el motivo exacto de rechazo por par.
 Uso: python diagnostico.py
 """
 
+from core.consola import forzar_utf8
+
+forzar_utf8()
+
 from core.config import estrategia as E, operativa as O, conexion as C
 from data.data_provider import obtener_velas, velas_disponibles
 from indicators.indicator_bank import calcular_confluencia

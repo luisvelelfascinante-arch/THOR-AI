@@ -3,6 +3,10 @@ Prueba rápida: envía un mensaje de prueba a Telegram usando lo que
 tengas configurado en tu .env. No toca MT5. Uso: python test_telegram.py
 """
 
+from core.consola import forzar_utf8
+
+forzar_utf8()
+
 from core.config import telegram as T
 from notifications.telegram_service import enviar_senal
 
