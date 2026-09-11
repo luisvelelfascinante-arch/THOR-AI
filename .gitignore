@@ -6,4 +6,5 @@ data_files/backtests/*.json
 data_files/backtests/*.csv
 data_files/historicos/
 data_files/historial.csv
+data_files/twelve_data_rate_limit.json*
 logs/*.log

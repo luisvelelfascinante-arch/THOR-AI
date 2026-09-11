@@ -146,6 +146,11 @@ class RutasConfig:
     LOG_PATH = os.path.join(BASE_DIR, "logs", "thor.log")
     BACKTEST_RESULTS_DIR = os.path.join(BASE_DIR, "data_files", "backtests")
 
+    # Contador de llamadas a Twelve Data, compartido entre procesos
+    # (main.py, diagnostico.py, test_twelve_data.py) — ver
+    # connectors/twelve_data_connector.py.
+    RATE_LIMIT_STATE_PATH = os.path.join(BASE_DIR, "data_files", "twelve_data_rate_limit.json")
+
 
 # Instancias únicas — el resto del proyecto importa estas, no las clases.
 estrategia = EstrategiaConfig()
